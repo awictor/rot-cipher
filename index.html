@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RotCipher — Caesar, ROT13, ROT47 &amp; Atbash cipher</title>
+<meta name="description" content="Free offline classic cipher tool. Encode and decode with Caesar shift, ROT13, ROT47, and Atbash. Works offline, no signup.">
+<link rel="canonical" href="https://awictor.github.io/rot-cipher/">
+<style>
+  :root{
+    --c:#713f12; --bg:#fcf9f4; --fg:#221a0f; --muted:#77664c;
+    --card:#ffffff; --border:#ece0d0; --code:#f6eee0;
+  }
+  [data-theme="dark"]{
+    --bg:#161009; --fg:#f1e9dd; --muted:#b49f82; --card:#231a0f;
+    --border:#3a2c1a; --code:#2c2113;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:16px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  header{max-width:760px;margin:0 auto;padding:26px 20px 6px;display:flex;align-items:center;gap:12px}
+  .logo{width:38px;height:38px;border-radius:10px;flex:none;
+    background:linear-gradient(135deg,var(--c),#ca8a04);display:grid;place-items:center;color:#fff;font-size:20px}
+  h1{font-size:1.35rem;margin:0}
+  .sub{color:var(--muted);font-size:.9rem;margin:2px 0 0}
+  .theme{margin-left:auto;background:none;border:1px solid var(--border);color:var(--fg);
+    border-radius:9px;padding:7px 11px;cursor:pointer;font-size:1rem}
+  main{max-width:760px;margin:0 auto;padding:8px 20px 60px}
+  .panel{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:22px;margin-top:18px}
+  label{display:block;font-weight:600;font-size:.82rem;margin:0 0 6px}
+  textarea{width:100%;min-height:100px;padding:12px 14px;border:1px solid var(--border);border-radius:11px;
+    background:var(--bg);color:var(--fg);font-size:.95rem;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    resize:vertical;line-height:1.55}
+  textarea:focus{outline:2px solid var(--c);border-color:var(--c)}
+  .modes{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 10px}
+  .modes button{background:var(--bg);border:1px solid var(--border);color:var(--fg);border-radius:9px;
+    padding:8px 14px;cursor:pointer;font-size:.86rem;font-weight:600}
+  .modes button.on{background:var(--c);color:#fff;border-color:var(--c)}
+  .shiftrow{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+  .shiftrow input[type=range]{flex:1;accent-color:var(--c)}
+  .shiftrow .v{font-family:ui-monospace,monospace;width:48px;text-align:right}
+  .out-head{display:flex;align-items:center;margin-top:8px}
+  .copy{margin-left:auto;background:none;border:1px solid var(--border);color:var(--muted);
+    border-radius:8px;padding:5px 13px;cursor:pointer;font-size:.8rem}
+  .copy:hover{color:var(--c);border-color:var(--c)}
+  .hint{color:var(--muted);font-size:.82rem;margin:14px 0 0}
+  footer{max-width:760px;margin:0 auto;padding:0 20px 40px;color:var(--muted);font-size:.84rem}
+  footer a{color:var(--c)}
+</style>
+</head>
+<body>
+<script>
+  (function(){var t=localStorage.getItem('rot.theme');
+   if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme:dark)').matches))
+     document.documentElement.setAttribute('data-theme','dark');})();
+</script>
+<header>
+  <div class="logo">🔡</div>
+  <div>
+    <h1>RotCipher</h1>
+    <p class="sub">Caesar · ROT13 · ROT47 · Atbash</p>
+  </div>
+  <button class="theme" id="theme" title="Toggle theme">🌙</button>
+</header>
+<main>
+  <div class="panel">
+    <label for="in">Text</label>
+    <textarea id="in" spellcheck="false">Hello, World!</textarea>
+    <div class="modes" id="modes">
+      <button data-m="caesar" class="on">Caesar</button>
+      <button data-m="rot13">ROT13</button>
+      <button data-m="rot47">ROT47</button>
+      <button data-m="atbash">Atbash</button>
+    </div>
+    <div class="shiftrow" id="shiftrow">
+      <label style="margin:0">Shift</label>
+      <input type="range" id="shift" min="0" max="25" value="3">
+      <span class="v" id="shiftv">3</span>
+      <button class="copy" id="decode" title="Decode instead of encode">Decode</button>
+    </div>
+    <div class="out-head">
+      <label style="margin:0">Result</label>
+      <button class="copy" id="copy">Copy</button>
+    </div>
+    <textarea id="out" spellcheck="false" readonly></textarea>
+    <p class="hint">ROT13, ROT47, and Atbash are their own inverse — run them again to decode.
+      For Caesar, use the Decode toggle. Everything runs locally.</p>
+  </div>
+</main>
+<footer>
+  RotCipher is part of the <a href="https://awictor.github.io/toolkit/">Toolkit</a> —
+  free, offline, no signup. · <a href="https://github.com/awictor/rot-cipher">Source</a>
+</footer>
+
+<script>
+// ---- pure functions ----
+function caesar(text, shift){
+  shift = ((Math.trunc(Number(shift)) % 26) + 26) % 26;
+  return String(text).replace(/[a-z]/gi, function(c){
+    var code = c.charCodeAt(0);
+    var base = (code >= 65 && code <= 90) ? 65 : 97;
+    return String.fromCharCode((code - base + shift) % 26 + base);
+  });
+}
+function rot13(text){ return caesar(text, 13); }
+function rot47(text){
+  return String(text).replace(/[!-~]/g, function(c){
+    return String.fromCharCode(33 + (c.charCodeAt(0) - 33 + 47) % 94);
+  });
+}
+function atbash(text){
+  return String(text).replace(/[a-z]/gi, function(c){
+    var code = c.charCodeAt(0);
+    if(code >= 65 && code <= 90) return String.fromCharCode(90 - (code - 65));
+    return String.fromCharCode(122 - (code - 97));
+  });
+}
+function apply(text, mode, shift, decode){
+  if(mode === 'rot13') return rot13(text);
+  if(mode === 'rot47') return rot47(text);
+  if(mode === 'atbash') return atbash(text);
+  return caesar(text, decode ? -shift : shift);
+}
+
+if(typeof module !== 'undefined') module.exports = { caesar, rot13, rot47, atbash, apply };
+
+// ---- UI ----
+if(typeof document !== 'undefined' && document.getElementById){
+  var inEl = document.getElementById('in');
+  var outEl = document.getElementById('out');
+  var modesEl = document.getElementById('modes');
+  var shiftEl = document.getElementById('shift');
+  var shiftvEl = document.getElementById('shiftv');
+  var shiftrow = document.getElementById('shiftrow');
+  var decodeBtn = document.getElementById('decode');
+  var mode = 'caesar', decode = false;
+
+  function render(){
+    shiftrow.style.display = (mode === 'caesar') ? 'flex' : 'none';
+    shiftvEl.textContent = shiftEl.value;
+    decodeBtn.className = decode ? 'copy on' : 'copy';
+    decodeBtn.style.background = decode ? 'var(--c)' : '';
+    decodeBtn.style.color = decode ? '#fff' : '';
+    outEl.value = apply(inEl.value, mode, Number(shiftEl.value), decode);
+    try{
+      localStorage.setItem('rot.in', inEl.value);
+      localStorage.setItem('rot.mode', mode);
+      localStorage.setItem('rot.shift', shiftEl.value);
+    }catch(e){}
+  }
+  modesEl.addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('button') : null;
+    if(!b) return;
+    mode = b.getAttribute('data-m');
+    [].forEach.call(modesEl.querySelectorAll('button'), function(x){ x.className = (x === b) ? 'on' : ''; });
+    render();
+  });
+  shiftEl.addEventListener('input', render);
+  inEl.addEventListener('input', render);
+  decodeBtn.addEventListener('click', function(){ decode = !decode; render(); });
+  document.getElementById('copy').addEventListener('click', function(){
+    if(navigator.clipboard) navigator.clipboard.writeText(outEl.value);
+    this.textContent = 'Copied'; var b = this; setTimeout(function(){ b.textContent = 'Copy'; }, 1000);
+  });
+  try{
+    var si = localStorage.getItem('rot.in'); if(si !== null) inEl.value = si;
+    var sm = localStorage.getItem('rot.mode');
+    if(sm){ mode = sm; [].forEach.call(modesEl.querySelectorAll('button'), function(x){
+      x.className = (x.getAttribute('data-m') === sm) ? 'on' : ''; }); }
+    var ss = localStorage.getItem('rot.shift'); if(ss !== null) shiftEl.value = ss;
+  }catch(e){}
+  render();
+
+  var themeBtn = document.getElementById('theme');
+  function syncIcon(){
+    themeBtn.textContent =
+      document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙';
+  }
+  syncIcon();
+  themeBtn.addEventListener('click', function(){
+    var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    if(dark){ document.documentElement.removeAttribute('data-theme');
+      localStorage.setItem('rot.theme','light'); }
+    else { document.documentElement.setAttribute('data-theme','dark');
+      localStorage.setItem('rot.theme','dark'); }
+    syncIcon();
+  });
+}
+</script>
+</body>
+</html>
